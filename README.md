@@ -11,6 +11,8 @@ the same members and attendance state in any browser.
 - Show GitHub avatars when available, with initials as the fallback.
 - Mark absent members without deleting them from the shared team.
 - Generate and copy a Fisher-Yates randomized speaking order.
+- Link each speaker to their open assigned repository issues or GitHub Project items.
+- Share the selected GitHub repository or project with the team configuration.
 - Update the shareable URL after every member or attendance change.
 - Follow the system light or dark theme, with explicit overrides.
 - Import legacy `?team=Alice,Bob` links from the original tools.
@@ -20,11 +22,11 @@ the same members and attendance state in any browser.
 Requirements:
 
 - Node.js 22.13 or newer
-- pnpm 11.10 or newer
+- npm 10 or newer
 
 ```shell
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 The preview server prints the first available URL starting at
@@ -33,8 +35,8 @@ The preview server prints the first available URL starting at
 Run the executable checks and production build with:
 
 ```shell
-pnpm test
-pnpm build
+npm test
+npm run build
 ```
 
 The project has no package dependencies. The build uses Node's TypeScript
@@ -52,6 +54,10 @@ Each tuple stores the display name, GitHub username, and presence flag. The
 app uses `history.replaceState`, so edits immediately update both the address
 bar and the read-only copy field without reloading the page. Team data is not
 stored on a server or in local storage; only the theme preference is local.
+
+An optional `github` parameter stores a GitHub repository or Project URL. In
+the speaking order, repository links show open issues assigned to that member.
+Project links show open issues and pull requests assigned to that member.
 
 ## Deployment
 

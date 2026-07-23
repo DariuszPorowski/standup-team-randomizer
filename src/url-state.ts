@@ -1,3 +1,5 @@
+import { parseGitHubContext } from './github-links.ts'
+
 export interface TeamMember {
   id: string
   name: string
@@ -15,6 +17,10 @@ function createMemberId(): string {
 
 export function normalizeGitHubUsername(username: string): string {
   return username.trim().replace(/^@+/, '')
+}
+
+export function readGitHubContextFromUrl(url: URL): string {
+  return parseGitHubContext(url.searchParams.get('github') ?? '')?.url ?? ''
 }
 
 export function readMembersFromUrl(
@@ -82,6 +88,25 @@ export function writeMembersToUrl(url: URL, members: TeamMember[]): URL {
       member.isPresent ? 1 : 0,
     ]))
   })
+
+  return nextUrl
+}
+
+export function writeAppStateToUrl(
+  url: URL,
+  members: TeamMember[],
+  githubContextUrl: string,
+): URL {
+  const nextUrl = writeMembersToUrl(url, members)
+  const githubContext = parseGitHubContext(githubContextUrl)
+  nextUrl.searchParams.delete('github')
+
+  if (githubContext) {
+    nextUrl.searchParams.set('v', STATE_VERSION)
+    nextUrl.searchParams.set('github', githubContext.url)
+  } else if (members.length === 0) {
+    nextUrl.searchParams.delete('v')
+  }
 
   return nextUrl
 }

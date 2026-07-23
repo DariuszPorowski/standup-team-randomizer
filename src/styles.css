@@ -428,6 +428,58 @@ a:focus-visible {
   gap: 20px;
 }
 
+.workspace-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  align-items: end;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.workspace-setting {
+  min-width: 0;
+}
+
+.workspace-setting__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.url-control {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.url-control__icon {
+  position: absolute;
+  z-index: 1;
+  top: 9px;
+  left: 10px;
+  color: var(--fgColor-muted, var(--color-fg-muted));
+  pointer-events: none;
+}
+
+.url-control__input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding-right: 10px;
+  padding-left: 34px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  border-radius: 6px 0 0 6px;
+}
+
+.url-control__button {
+  min-width: 76px;
+  height: 34px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 0;
+}
+
 .panel {
   overflow: hidden;
   background: var(--bgColor-default, var(--color-canvas-default));
@@ -720,52 +772,6 @@ a:focus-visible {
   height: 20px;
 }
 
-.share-section {
-  padding: 14px 16px 16px;
-  background: var(--bgColor-muted, var(--color-canvas-subtle));
-  border-top: 1px solid var(--borderColor-default, var(--color-border-default));
-}
-
-.share-section__label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.share-control {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.share-control__icon {
-  position: absolute;
-  z-index: 1;
-  top: 9px;
-  left: 10px;
-  color: var(--fgColor-muted, var(--color-fg-muted));
-  pointer-events: none;
-}
-
-.share-control__input {
-  width: 100%;
-  min-width: 0;
-  height: 34px;
-  padding-left: 34px;
-  padding-right: 10px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  border-radius: 6px 0 0 6px;
-}
-
-.share-control__button {
-  min-width: 76px;
-  height: 34px;
-  margin-left: -1px;
-  border-radius: 0 6px 6px 0;
-}
-
 .order-panel {
   position: sticky;
   top: 20px;
@@ -835,6 +841,37 @@ a:focus-visible {
   border-top: 1px solid var(--borderColor-default, var(--color-border-default));
 }
 
+.app-footer {
+  background: var(--bgColor-muted, var(--color-canvas-subtle));
+  border-top: 1px solid var(--borderColor-default, var(--color-border-default));
+}
+
+.app-footer__inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: min(1120px, calc(100% - 32px));
+  min-height: 64px;
+  margin: 0 auto;
+}
+
+.source-link {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  color: var(--fgColor-muted, var(--color-fg-muted));
+  place-items: center;
+}
+
+.source-link:hover {
+  color: var(--fgColor-default, var(--color-fg-default));
+}
+
+.source-link svg {
+  width: 22px;
+  height: 22px;
+}
+
 .toast {
   position: fixed;
   right: 20px;
@@ -879,6 +916,7 @@ a:focus-visible {
 }
 
 @media (max-width: 820px) {
+  .workspace-settings,
   .workspace-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -895,7 +933,8 @@ a:focus-visible {
 
 @media (max-width: 560px) {
   .app-header__inner,
-  .app-main {
+  .app-main,
+  .app-footer__inner {
     width: min(100% - 24px, 1120px);
   }
 
@@ -918,7 +957,6 @@ a:focus-visible {
 
   .panel-header,
   .member-row,
-  .share-section,
   .order-item,
   .order-footer {
     padding-right: 12px;
@@ -949,16 +987,16 @@ a:focus-visible {
     display: none;
   }
 
-  .share-control {
+  .url-control--share {
     grid-template-columns: minmax(0, 1fr) 44px;
   }
 
-  .share-control__button {
+  .url-control--share .url-control__button {
     min-width: 44px;
     padding: 0;
   }
 
-  .share-control__button span {
+  .url-control--share .url-control__button span {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -974,11 +1012,12 @@ a:focus-visible {
 
 @media (max-width: 390px) {
   .theme-control__select {
-    width: 96px;
+    width: 108px;
   }
 
   .app-identity__name {
-    max-width: 132px;
+    max-width: calc(100vw - 190px);
+    font-size: 13px;
   }
 
   .page-header {

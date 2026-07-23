@@ -34,7 +34,7 @@
 # Node.js
 package-lock.json -text linguist-generated=true
 npm-shrinkwrap.json -text linguist-generated=true
-pnpm-lock.yaml -text linguist-generated=true
+package-lock.json -text linguist-generated=true
 yarn.lock -text linguist-generated=true
 bun.lock -text linguist-generated=true
 bun.lockb binary linguist-generated=true

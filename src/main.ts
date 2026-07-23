@@ -1,9 +1,15 @@
 import { createIcons } from './icons.ts'
+import {
+  createGitHubProfileUrl,
+  createGitHubWorkUrl,
+  parseGitHubContext,
+} from './github-links.ts'
 import { shuffle } from './randomizer.ts'
 import {
   normalizeGitHubUsername,
+  readGitHubContextFromUrl,
   readMembersFromUrl,
-  writeMembersToUrl,
+  writeAppStateToUrl,
   type TeamMember,
 } from './url-state.ts'
 
@@ -51,6 +57,42 @@ app.innerHTML = `
       </span>
     </header>
 
+    <section class="workspace-settings" aria-label="Standup links">
+      <div class="workspace-setting">
+        <label class="workspace-setting__label" for="share-url">Shareable URL</label>
+        <div class="url-control url-control--share">
+          <span class="url-control__icon" aria-hidden="true">
+            <i data-lucide="link-2"></i>
+          </span>
+          <input class="form-control url-control__input" id="share-url" type="url" readonly />
+          <button class="btn url-control__button" id="copy-url-button" type="button">
+            <i data-lucide="copy"></i>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <form class="workspace-setting" id="github-context-form">
+        <label class="workspace-setting__label" for="github-context-url">GitHub repository or project URL</label>
+        <div class="url-control">
+          <span class="url-control__icon" aria-hidden="true">
+            <i data-lucide="github"></i>
+          </span>
+          <input
+            class="form-control url-control__input"
+            id="github-context-url"
+            name="github-context-url"
+            type="url"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="https://github.com/owner/repository"
+            spellcheck="false"
+          />
+          <button class="btn url-control__button" type="submit">Apply</button>
+        </div>
+      </form>
+    </section>
+
     <div class="workspace-grid">
       <section class="panel team-panel" aria-labelledby="team-heading">
         <header class="panel-header">
@@ -78,20 +120,6 @@ app.innerHTML = `
         </div>
 
         <ul class="member-list" id="member-list" aria-label="Team members"></ul>
-
-        <footer class="share-section">
-          <label class="share-section__label" for="share-url">Shareable team URL</label>
-          <div class="share-control">
-            <span class="share-control__icon" aria-hidden="true">
-              <i data-lucide="link-2"></i>
-            </span>
-            <input class="form-control share-control__input" id="share-url" type="url" readonly />
-            <button class="btn share-control__button" id="copy-url-button" type="button">
-              <i data-lucide="copy"></i>
-              <span>Copy</span>
-            </button>
-          </div>
-        </footer>
       </section>
 
       <aside class="panel order-panel" aria-labelledby="order-heading">
@@ -129,6 +157,21 @@ app.innerHTML = `
     </div>
   </main>
 
+  <footer class="app-footer">
+    <div class="app-footer__inner">
+      <a
+        class="source-link"
+        href="https://github.com/DariuszPorowski/standup-team-randomizer"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="View source on GitHub"
+        aria-label="View source on GitHub"
+      >
+        <i data-lucide="github"></i>
+      </a>
+    </div>
+  </footer>
+
   <div class="toast" id="toast" role="status" hidden>
     <i data-lucide="check"></i>
     <span id="toast-text"></span>
@@ -152,6 +195,8 @@ const elements = {
   copyOrderButton: getElement<HTMLButtonElement>('copy-order-button'),
   copyUrlButton: getElement<HTMLButtonElement>('copy-url-button'),
   emptyAddMemberButton: getElement<HTMLButtonElement>('empty-add-member-button'),
+  githubContextForm: getElement<HTMLFormElement>('github-context-form'),
+  githubContextUrl: getElement<HTMLInputElement>('github-context-url'),
   liveRegion: getElement<HTMLDivElement>('live-region'),
   memberEmpty: getElement<HTMLDivElement>('member-empty'),
   memberList: getElement<HTMLUListElement>('member-list'),
@@ -171,6 +216,7 @@ const elements = {
 }
 
 let members = readMembersFromUrl(new URL(window.location.href))
+let githubContextUrl = readGitHubContextFromUrl(new URL(window.location.href))
 let orderedMemberIds: string[] | null = null
 let editingMemberId: string | null = null
 let isAddFormOpen = members.length === 0
@@ -259,7 +305,10 @@ function createPresenceToggle(member: TeamMember): HTMLElement {
   return label
 }
 
-function createMemberDetails(member: TeamMember): HTMLElement {
+function createMemberDetails(
+  member: TeamMember,
+  destination: 'profile' | 'work' = 'profile',
+): HTMLElement {
   const details = document.createElement('div')
   details.className = 'member-details'
 
@@ -270,12 +319,21 @@ function createMemberDetails(member: TeamMember): HTMLElement {
 
   if (member.github) {
     const profile = document.createElement('a')
+    const githubContext = destination === 'work'
+      ? parseGitHubContext(githubContextUrl)
+      : null
     profile.className = 'member-github'
-    profile.href = `https://github.com/${encodeURIComponent(member.github)}`
+    profile.href = destination === 'work'
+      ? createGitHubWorkUrl(member.github, githubContextUrl)
+      : createGitHubProfileUrl(member.github)
     profile.target = '_blank'
-    profile.rel = 'noreferrer'
+    profile.rel = 'noopener noreferrer'
     profile.textContent = `@${member.github}`
-    profile.title = `Open @${member.github} on GitHub`
+    profile.title = githubContext?.kind === 'repository'
+      ? `Open issues assigned to @${member.github}`
+      : githubContext?.kind === 'project'
+        ? `Open project items assigned to @${member.github}`
+        : `Open @${member.github} on GitHub`
     details.append(profile)
   } else {
     const noProfile = document.createElement('span')
@@ -523,7 +581,7 @@ function renderOrder(): void {
 
     const identity = document.createElement('div')
     identity.className = 'order-item__identity'
-    identity.append(createAvatar(member, 'small'), createMemberDetails(member))
+    identity.append(createAvatar(member, 'small'), createMemberDetails(member, 'work'))
     item.append(position, identity)
     elements.orderList.append(item)
   })
@@ -535,7 +593,11 @@ function renderOrder(): void {
 }
 
 function syncUrl(): void {
-  const nextUrl = writeMembersToUrl(new URL(window.location.href), members)
+  const nextUrl = writeAppStateToUrl(
+    new URL(window.location.href),
+    members,
+    githubContextUrl,
+  )
   currentShareUrl = nextUrl.href
   elements.shareUrl.value = currentShareUrl
 
@@ -686,7 +748,11 @@ elements.memberList.addEventListener('change', (event) => {
   }
 
   const row = checkbox.closest<HTMLElement>('[data-member-id]')
-  const member = members.find((candidate) => candidate.id === row?.dataset.memberId)
+  if (!row) {
+    return
+  }
+
+  const member = members.find((candidate) => candidate.id === row.dataset.memberId)
   if (!member) {
     return
   }
@@ -802,6 +868,32 @@ elements.copyUrlButton.addEventListener('click', async () => {
 
 elements.shareUrl.addEventListener('focus', () => elements.shareUrl.select())
 
+elements.githubContextUrl.addEventListener('input', () => {
+  elements.githubContextUrl.setCustomValidity('')
+})
+
+elements.githubContextForm.addEventListener('submit', (event) => {
+  event.preventDefault()
+
+  const value = elements.githubContextUrl.value.trim()
+  const githubContext = value ? parseGitHubContext(value) : null
+  if (value && !githubContext) {
+    elements.githubContextUrl.setCustomValidity(
+      'Enter a GitHub repository or project URL, such as https://github.com/owner/repository.',
+    )
+    elements.githubContextUrl.reportValidity()
+    return
+  }
+
+  githubContextUrl = githubContext?.url ?? ''
+  elements.githubContextUrl.value = githubContextUrl
+  syncUrl()
+  renderOrder()
+  refreshIcons()
+  announce(githubContext ? `GitHub ${githubContext.kind} applied` : 'GitHub context removed')
+  showToast(githubContext ? `GitHub ${githubContext.kind} applied` : 'GitHub context removed')
+})
+
 elements.copyOrderButton.addEventListener('click', async () => {
   if (!orderedMemberIds) {
     return
@@ -834,6 +926,8 @@ elements.themeSelect.addEventListener('change', () => {
 
 window.addEventListener('popstate', () => {
   members = readMembersFromUrl(new URL(window.location.href))
+  githubContextUrl = readGitHubContextFromUrl(new URL(window.location.href))
+  elements.githubContextUrl.value = githubContextUrl
   orderedMemberIds = null
   editingMemberId = null
   isAddFormOpen = members.length === 0
@@ -845,6 +939,7 @@ elements.todayDate.textContent = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
 }).format(new Date())
 
+elements.githubContextUrl.value = githubContextUrl
 applyTheme(loadTheme())
 syncUrl()
 render()

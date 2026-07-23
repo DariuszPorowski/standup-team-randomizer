@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const outputDirectory = join(root, 'dist')
 const assetsDirectory = join(outputDirectory, 'assets')
-const modules = ['icons', 'randomizer', 'url-state', 'main']
+const modules = ['github-links', 'icons', 'randomizer', 'url-state', 'main']
 
 await rm(outputDirectory, { force: true, recursive: true })
 await mkdir(assetsDirectory, { recursive: true })

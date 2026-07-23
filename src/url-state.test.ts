@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  readGitHubContextFromUrl,
   readMembersFromUrl,
+  writeAppStateToUrl,
   writeMembersToUrl,
   type TeamMember,
 } from './url-state.ts'
@@ -66,4 +68,35 @@ test('removes app state when the team becomes empty', () => {
   assert.equal(url.searchParams.has('v'), false)
   assert.equal(url.searchParams.has('member'), false)
   assert.equal(url.searchParams.get('keep'), '1')
+})
+
+test('round-trips a normalized GitHub context with the team', () => {
+  const url = writeAppStateToUrl(
+    new URL('https://example.test/?keep=1'),
+    [{ id: '1', name: 'Mona', github: 'monalisa', isPresent: true }],
+    'https://github.com/orgs/github/projects/4247/views/1/?query=old',
+  )
+
+  assert.equal(url.searchParams.get('v'), '1')
+  assert.equal(
+    url.searchParams.get('github'),
+    'https://github.com/orgs/github/projects/4247/views/1',
+  )
+  assert.equal(
+    readGitHubContextFromUrl(url),
+    'https://github.com/orgs/github/projects/4247/views/1',
+  )
+  assert.equal(url.searchParams.get('keep'), '1')
+})
+
+test('keeps GitHub context state without team members', () => {
+  const url = writeAppStateToUrl(
+    new URL('https://example.test/?member=old'),
+    [],
+    'https://github.com/octocat/hello-world',
+  )
+
+  assert.equal(url.searchParams.get('v'), '1')
+  assert.equal(url.searchParams.has('member'), false)
+  assert.equal(url.searchParams.get('github'), 'https://github.com/octocat/hello-world')
 })
