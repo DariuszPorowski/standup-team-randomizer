@@ -1,2 +1,60 @@
-# standup-team-randomizer
-http://dariuszporowski.github.io/standup-team-randomizer
+# Standup team randomizer
+
+A static, backend-free standup order tool with a GitHub Primer-inspired UI.
+The complete team configuration lives in the URL, so a copied link recreates
+the same members and attendance state in any browser.
+
+## Features
+
+- Add, edit, and remove members in the UI.
+- Store a display name and optional GitHub username for each member.
+- Show GitHub avatars when available, with initials as the fallback.
+- Mark absent members without deleting them from the shared team.
+- Generate and copy a Fisher-Yates randomized speaking order.
+- Update the shareable URL after every member or attendance change.
+- Follow the system light or dark theme, with explicit overrides.
+- Import legacy `?team=Alice,Bob` links from the original tools.
+
+## Development
+
+Requirements:
+
+- Node.js 22.13 or newer
+- pnpm 11.10 or newer
+
+```shell
+pnpm install
+pnpm dev
+```
+
+The preview server prints the first available URL starting at
+`http://127.0.0.1:4173`.
+
+Run the executable checks and production build with:
+
+```shell
+pnpm test
+pnpm build
+```
+
+The project has no package dependencies. The build uses Node's TypeScript
+transformer and writes browser-ready ES modules to `dist/`.
+
+## URL state
+
+Version 1 uses one URL-encoded JSON tuple per repeated `member` parameter:
+
+```text
+?v=1&member=["Ada Lovelace","octocat",1]&member=["Grace Hopper","",0]
+```
+
+Each tuple stores the display name, GitHub username, and presence flag. The
+app uses `history.replaceState`, so edits immediately update both the address
+bar and the read-only copy field without reloading the page. Team data is not
+stored on a server or in local storage; only the theme preference is local.
+
+## Deployment
+
+Publish the contents of `dist/` to GitHub Pages or any static file host. All
+asset references are relative, so the artifact works at a domain root or a
+repository subpath without additional configuration.
