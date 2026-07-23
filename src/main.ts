@@ -68,7 +68,7 @@ app.innerHTML = `
       </div>
 
       <form class="workspace-setting" id="github-context-form">
-        <label class="workspace-setting__label" for="github-context-url">GitHub repository or project URL</label>
+        <label class="workspace-setting__label" for="github-context-url">GitHub repository or project</label>
         <div class="url-control">
           <span class="url-control__icon" aria-hidden="true">
             <i data-lucide="github"></i>
@@ -77,10 +77,10 @@ app.innerHTML = `
             class="form-control url-control__input"
             id="github-context-url"
             name="github-context-url"
-            type="url"
-            inputmode="url"
-            autocomplete="url"
-            placeholder="https://github.com/owner/repository"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            placeholder="owner/repository"
             spellcheck="false"
           />
           <button class="btn url-control__button" type="submit">Apply</button>
@@ -213,6 +213,25 @@ let editingMemberId: string | null = null
 let isAddFormOpen = members.length === 0
 let currentShareUrl = window.location.href
 let toastTimer: number | undefined
+
+function parseGitHubContextInput(value: string): ReturnType<typeof parseGitHubContext> {
+  const input = value.trim()
+  if (!input) {
+    return null
+  }
+
+  const candidate = /^https?:\/\//i.test(input)
+    ? input
+    : `https://github.com/${input.replace(/^github\.com\//i, '').replace(/^\/+/, '')}`
+  return parseGitHubContext(candidate)
+}
+
+function formatGitHubContextInput(value: string): string {
+  const githubContext = parseGitHubContext(value)
+  return githubContext
+    ? new URL(githubContext.url).pathname.slice(1)
+    : ''
+}
 
 function refreshIcons(): void {
   createIcons()
@@ -892,17 +911,17 @@ elements.githubContextForm.addEventListener('submit', (event) => {
   event.preventDefault()
 
   const value = elements.githubContextUrl.value.trim()
-  const githubContext = value ? parseGitHubContext(value) : null
+  const githubContext = parseGitHubContextInput(value)
   if (value && !githubContext) {
     elements.githubContextUrl.setCustomValidity(
-      'Enter a GitHub repository or project URL, such as https://github.com/owner/repository.',
+      'Enter a GitHub repository or project path, such as owner/repository.',
     )
     elements.githubContextUrl.reportValidity()
     return
   }
 
   githubContextUrl = githubContext?.url ?? ''
-  elements.githubContextUrl.value = githubContextUrl
+  elements.githubContextUrl.value = formatGitHubContextInput(githubContextUrl)
   syncUrl()
   renderOrder()
   refreshIcons()
@@ -943,7 +962,7 @@ elements.themeSelect.addEventListener('change', () => {
 window.addEventListener('popstate', () => {
   members = readMembersFromUrl(new URL(window.location.href))
   githubContextUrl = readGitHubContextFromUrl(new URL(window.location.href))
-  elements.githubContextUrl.value = githubContextUrl
+  elements.githubContextUrl.value = formatGitHubContextInput(githubContextUrl)
   orderedMemberIds = null
   editingMemberId = null
   isAddFormOpen = members.length === 0
@@ -951,7 +970,7 @@ window.addEventListener('popstate', () => {
   render()
 })
 
-elements.githubContextUrl.value = githubContextUrl
+elements.githubContextUrl.value = formatGitHubContextInput(githubContextUrl)
 applyTheme(loadTheme())
 syncUrl()
 render()
