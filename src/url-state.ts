@@ -9,7 +9,9 @@ export interface TeamMember {
 
 type MemberIdFactory = () => string
 
-const STATE_VERSION = '1'
+const MEMBER_PARAMETER = 'm'
+const GITHUB_PARAMETER = 'gh'
+const REMOVED_PARAMETERS = ['github', 'member', 'team', 'v']
 
 function createMemberId(): string {
   return crypto.randomUUID()
@@ -20,73 +22,60 @@ export function normalizeGitHubUsername(username: string): string {
 }
 
 export function readGitHubContextFromUrl(url: URL): string {
-  return parseGitHubContext(url.searchParams.get('github') ?? '')?.url ?? ''
+  const path = url.searchParams.get(GITHUB_PARAMETER)
+  return path
+    ? parseGitHubContext(`https://github.com/${path}`)?.url ?? ''
+    : ''
 }
 
 export function readMembersFromUrl(
   url: URL,
   createId: MemberIdFactory = createMemberId,
 ): TeamMember[] {
-  const encodedMembers = url.searchParams.getAll('member')
+  return url.searchParams.getAll(MEMBER_PARAMETER).flatMap((encodedMember) => {
+    try {
+      const value: unknown = JSON.parse(encodedMember)
 
-  if (encodedMembers.length > 0) {
-    return encodedMembers.flatMap((encodedMember) => {
-      try {
-        const value: unknown = JSON.parse(encodedMember)
-
-        if (!Array.isArray(value) || typeof value[0] !== 'string') {
-          return []
-        }
-
-        const name = value[0].trim()
-        if (!name) {
-          return []
-        }
-
-        return [{
-          id: createId(),
-          name,
-          github: typeof value[1] === 'string'
-            ? normalizeGitHubUsername(value[1])
-            : '',
-          isPresent: value[2] !== 0,
-        }]
-      } catch {
+      if (!Array.isArray(value) || typeof value[0] !== 'string') {
         return []
       }
-    })
-  }
 
-  return url.searchParams
-    .getAll('team')
-    .flatMap((team) => team.split(','))
-    .map((name) => name.trim())
-    .filter(Boolean)
-    .map((name) => ({
-      id: createId(),
-      name,
-      github: '',
-      isPresent: true,
-    }))
+      const name = value[0].trim()
+      if (!name) {
+        return []
+      }
+
+      return [{
+        id: createId(),
+        name,
+        github: typeof value[1] === 'string'
+          ? normalizeGitHubUsername(value[1])
+          : '',
+        isPresent: value[2] !== 0,
+      }]
+    } catch {
+      return []
+    }
+  })
 }
 
 export function writeMembersToUrl(url: URL, members: TeamMember[]): URL {
   const nextUrl = new URL(url)
-  nextUrl.searchParams.delete('member')
-  nextUrl.searchParams.delete('team')
-  nextUrl.searchParams.delete('v')
+  nextUrl.searchParams.delete(MEMBER_PARAMETER)
+  REMOVED_PARAMETERS.forEach((parameter) => nextUrl.searchParams.delete(parameter))
 
-  if (members.length === 0) {
-    return nextUrl
-  }
-
-  nextUrl.searchParams.set('v', STATE_VERSION)
   members.forEach((member) => {
-    nextUrl.searchParams.append('member', JSON.stringify([
-      member.name.trim(),
-      normalizeGitHubUsername(member.github),
-      member.isPresent ? 1 : 0,
-    ]))
+    const value: Array<string | number> = [member.name.trim()]
+    const github = normalizeGitHubUsername(member.github)
+
+    if (github || !member.isPresent) {
+      value.push(github)
+    }
+    if (!member.isPresent) {
+      value.push(0)
+    }
+
+    nextUrl.searchParams.append(MEMBER_PARAMETER, JSON.stringify(value))
   })
 
   return nextUrl
@@ -99,13 +88,13 @@ export function writeAppStateToUrl(
 ): URL {
   const nextUrl = writeMembersToUrl(url, members)
   const githubContext = parseGitHubContext(githubContextUrl)
-  nextUrl.searchParams.delete('github')
+  nextUrl.searchParams.delete(GITHUB_PARAMETER)
 
   if (githubContext) {
-    nextUrl.searchParams.set('v', STATE_VERSION)
-    nextUrl.searchParams.set('github', githubContext.url)
-  } else if (members.length === 0) {
-    nextUrl.searchParams.delete('v')
+    nextUrl.searchParams.set(
+      GITHUB_PARAMETER,
+      new URL(githubContext.url).pathname.slice(1),
+    )
   }
 
   return nextUrl

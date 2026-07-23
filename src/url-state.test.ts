@@ -32,7 +32,11 @@ test('round-trips member details and attendance through the URL', () => {
   const restored = readMembersFromUrl(url, () => `restored-${nextId++}`)
 
   assert.equal(url.searchParams.get('keep'), '1')
-  assert.equal(url.searchParams.get('v'), '1')
+  assert.deepEqual(url.searchParams.getAll('m'), [
+    '["Zoe, QA | Lead","octocat"]',
+    '["Alice / Bob","",0]',
+  ])
+  assert.equal(url.searchParams.has('v'), false)
   assert.equal(url.hash, '#standup')
   assert.deepEqual(
     restored.map(({ id: _, ...member }) => member),
@@ -43,29 +47,25 @@ test('round-trips member details and attendance through the URL', () => {
   )
 })
 
-test('imports legacy comma-separated team URLs', () => {
-  let nextId = 0
-  const members = readMembersFromUrl(
-    new URL('https://example.test/?team=Alice%20A,Bob'),
-    () => `legacy-${nextId++}`,
+test('does not read removed long-form URL parameters', () => {
+  const url = new URL(
+    'https://example.test/?v=1&member=["Mona","octocat",1]&team=Alice&github=https://github.com/octocat/hello-world',
   )
 
-  assert.deepEqual(
-    members.map(({ id: _, ...member }) => member),
-    [
-      { name: 'Alice A', github: '', isPresent: true },
-      { name: 'Bob', github: '', isPresent: true },
-    ],
-  )
+  assert.deepEqual(readMembersFromUrl(url), [])
+  assert.equal(readGitHubContextFromUrl(url), '')
 })
 
 test('removes app state when the team becomes empty', () => {
-  const url = writeMembersToUrl(
-    new URL('https://example.test/?v=1&member=old&keep=1'),
+  const url = writeAppStateToUrl(
+    new URL('https://example.test/?m=old&gh=octocat/hello-world&keep=1'),
     [],
+    '',
   )
 
   assert.equal(url.searchParams.has('v'), false)
+  assert.equal(url.searchParams.has('m'), false)
+  assert.equal(url.searchParams.has('gh'), false)
   assert.equal(url.searchParams.has('member'), false)
   assert.equal(url.searchParams.get('keep'), '1')
 })
@@ -77,10 +77,10 @@ test('round-trips a normalized GitHub context with the team', () => {
     'https://github.com/orgs/github/projects/4247/views/1/?query=old',
   )
 
-  assert.equal(url.searchParams.get('v'), '1')
+  assert.equal(url.searchParams.has('v'), false)
   assert.equal(
-    url.searchParams.get('github'),
-    'https://github.com/orgs/github/projects/4247/views/1',
+    url.searchParams.get('gh'),
+    'orgs/github/projects/4247/views/1',
   )
   assert.equal(
     readGitHubContextFromUrl(url),
@@ -91,12 +91,19 @@ test('round-trips a normalized GitHub context with the team', () => {
 
 test('keeps GitHub context state without team members', () => {
   const url = writeAppStateToUrl(
-    new URL('https://example.test/?member=old'),
+    new URL('https://example.test/?member=old&github=old&team=old&v=1'),
     [],
     'https://github.com/octocat/hello-world',
   )
 
-  assert.equal(url.searchParams.get('v'), '1')
+  assert.equal(url.searchParams.has('v'), false)
   assert.equal(url.searchParams.has('member'), false)
-  assert.equal(url.searchParams.get('github'), 'https://github.com/octocat/hello-world')
+  assert.equal(url.searchParams.has('github'), false)
+  assert.equal(url.searchParams.has('team'), false)
+  assert.equal(url.searchParams.has('m'), false)
+  assert.equal(url.searchParams.get('gh'), 'octocat/hello-world')
+  assert.equal(
+    readGitHubContextFromUrl(url),
+    'https://github.com/octocat/hello-world',
+  )
 })

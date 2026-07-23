@@ -15,7 +15,6 @@ the same members and attendance state in any browser.
 - Share the selected GitHub repository or project with the team configuration.
 - Update the shareable URL after every member or attendance change.
 - Follow the system light or dark theme, with explicit overrides.
-- Import legacy `?team=Alice,Bob` links from the original tools.
 
 ## Development
 
@@ -44,20 +43,23 @@ transformer and writes browser-ready ES modules to `dist/`.
 
 ## URL state
 
-Version 1 uses one URL-encoded JSON tuple per repeated `member` parameter:
+The compact URL schema uses one JSON tuple per repeated `m` parameter:
 
 ```text
-?v=1&member=["Ada Lovelace","octocat",1]&member=["Grace Hopper","",0]
+?m=["Ada Lovelace","octocat"]&m=["Grace Hopper","",0]
 ```
 
-Each tuple stores the display name, GitHub username, and presence flag. The
+Each tuple stores the display name and optional GitHub username. The presence
+flag is omitted when the member is present and stored as `0` when absent. The
 app uses `history.replaceState`, so edits immediately update both the address
 bar and the read-only copy field without reloading the page. Team data is not
 stored on a server or in local storage; only the theme preference is local.
 
-An optional `github` parameter stores a GitHub repository or Project URL. In
-the speaking order, repository links show open issues assigned to that member.
-Project links show open issues and pull requests assigned to that member.
+An optional `gh` parameter stores the path of a GitHub repository or Project,
+without the `https://github.com/` origin. In the speaking order, repository
+links show open issues assigned to that member. Project links show open issues
+and pull requests assigned to that member. Long-form and legacy parameters are
+not supported.
 
 ## Deployment
 
