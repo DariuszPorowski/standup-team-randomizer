@@ -55,6 +55,11 @@ stored on a server or in local storage; only the theme preference is local.
 
 ## Deployment
 
-Publish the contents of `dist/` to GitHub Pages or any static file host. All
-asset references are relative, so the artifact works at a domain root or a
+The [GitHub Pages workflow](.github/workflows/deploy-pages.yml) tests the app,
+builds it, and publishes `dist/` whenever `main` changes. In the repository's
+**Settings > Pages** screen, set **Build and deployment > Source** to
+**GitHub Actions** once, then push to `main` or run the workflow manually.
+
+For other static file hosts, publish the contents of `dist/`. All asset
+references are relative, so the artifact works at a domain root or a
 repository subpath without additional configuration.
