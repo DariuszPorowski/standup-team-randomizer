@@ -140,6 +140,12 @@ body {
   background-attachment: fixed;
 }
 
+#app {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
 button,
 input,
 select {
@@ -379,6 +385,7 @@ a:focus-visible {
 
 .app-main {
   width: min(1120px, calc(100% - 32px));
+  flex: 1 0 auto;
   margin: 0 auto;
   padding: 36px 0 64px;
 }
