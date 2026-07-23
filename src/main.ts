@@ -14,9 +14,13 @@ import {
 } from './url-state.ts'
 
 type Theme = 'auto' | 'light' | 'dark'
+type GitHubDestination = 'profile' | 'work'
 
 const THEME_STORAGE_KEY = 'standup-randomizer-theme'
 const GITHUB_USERNAME_PATTERN = '@?[A-Za-z0-9](?:[A-Za-z0-9\\-]{0,37}[A-Za-z0-9])?'
+const TODAY = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'long',
+}).format(new Date())
 
 const app = document.querySelector<HTMLDivElement>('#app')
 
@@ -46,16 +50,7 @@ app.innerHTML = `
   </header>
 
   <main class="app-main" id="main-content">
-    <header class="page-header">
-      <div>
-        <h1>Standup order</h1>
-        <p class="page-header__date" id="today-date"></p>
-      </div>
-      <span class="presence-summary" id="presence-summary">
-        <i data-lucide="users"></i>
-        <span id="presence-summary-text">0 present</span>
-      </span>
-    </header>
+    <h1 class="sr-only">Standup team randomizer</h1>
 
     <section class="workspace-settings" aria-label="Standup links">
       <div class="workspace-setting">
@@ -124,11 +119,9 @@ app.innerHTML = `
 
       <aside class="panel order-panel" aria-labelledby="order-heading">
         <header class="panel-header order-panel__header">
-          <div>
-            <div class="panel-title">
-              <h2 id="order-heading">Speaking order</h2>
-            </div>
-            <span class="order-panel__meta" id="order-meta">Not shuffled</span>
+          <div class="panel-title">
+            <h2 id="order-heading">Speaking order</h2>
+            <span class="order-panel__meta" id="order-meta" hidden></span>
           </div>
           <div class="order-panel__tools">
             <button class="btn btn-sm icon-button" id="copy-order-button" type="button" title="Copy speaking order" aria-label="Copy speaking order" hidden>
@@ -204,7 +197,6 @@ const elements = {
   orderEmptyText: getElement<HTMLElement>('order-empty-text'),
   orderList: getElement<HTMLOListElement>('order-list'),
   orderMeta: getElement<HTMLElement>('order-meta'),
-  presenceSummaryText: getElement<HTMLElement>('presence-summary-text'),
   shareUrl: getElement<HTMLInputElement>('share-url'),
   shuffleButton: getElement<HTMLButtonElement>('shuffle-button'),
   shuffleButtonLabel: getElement<HTMLElement>('shuffle-button-label'),
@@ -212,7 +204,6 @@ const elements = {
   themeSelect: getElement<HTMLSelectElement>('theme-select'),
   toast: getElement<HTMLDivElement>('toast'),
   toastText: getElement<HTMLElement>('toast-text'),
-  todayDate: getElement<HTMLElement>('today-date'),
 }
 
 let members = readMembersFromUrl(new URL(window.location.href))
@@ -251,7 +242,44 @@ function initialsFor(name: string): string {
     .join('') || '?'
 }
 
-function createAvatar(member: TeamMember, size: 'small' | 'medium' = 'medium'): HTMLElement {
+function getGitHubDestination(
+  member: TeamMember,
+  destination: GitHubDestination,
+): { href: string, title: string } {
+  const githubContext = destination === 'work'
+    ? parseGitHubContext(githubContextUrl)
+    : null
+
+  return {
+    href: destination === 'work'
+      ? createGitHubWorkUrl(member.github, githubContextUrl)
+      : createGitHubProfileUrl(member.github),
+    title: githubContext?.kind === 'repository'
+      ? `Open issues assigned to @${member.github}`
+      : githubContext?.kind === 'project'
+        ? `Open project items assigned to @${member.github}`
+        : `Open @${member.github} on GitHub`,
+  }
+}
+
+function createGitHubLink(
+  member: TeamMember,
+  destination: GitHubDestination,
+): HTMLAnchorElement {
+  const link = document.createElement('a')
+  const target = getGitHubDestination(member, destination)
+  link.href = target.href
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  link.title = target.title
+  return link
+}
+
+function createAvatar(
+  member: TeamMember,
+  size: 'small' | 'medium' = 'medium',
+  destination: GitHubDestination = 'profile',
+): HTMLElement {
   const avatar = document.createElement('span')
   avatar.className = `member-avatar member-avatar--${size}`
   avatar.textContent = initialsFor(member.name)
@@ -266,6 +294,12 @@ function createAvatar(member: TeamMember, size: 'small' | 'medium' = 'medium'): 
     image.referrerPolicy = 'no-referrer'
     image.addEventListener('error', () => image.remove(), { once: true })
     avatar.append(image)
+
+    const link = createGitHubLink(member, destination)
+    link.className = 'member-avatar-link'
+    link.setAttribute('aria-label', link.title)
+    link.append(avatar)
+    return link
   }
 
   return avatar
@@ -307,7 +341,7 @@ function createPresenceToggle(member: TeamMember): HTMLElement {
 
 function createMemberDetails(
   member: TeamMember,
-  destination: 'profile' | 'work' = 'profile',
+  destination: GitHubDestination = 'profile',
 ): HTMLElement {
   const details = document.createElement('div')
   details.className = 'member-details'
@@ -318,22 +352,9 @@ function createMemberDetails(
   details.append(name)
 
   if (member.github) {
-    const profile = document.createElement('a')
-    const githubContext = destination === 'work'
-      ? parseGitHubContext(githubContextUrl)
-      : null
+    const profile = createGitHubLink(member, destination)
     profile.className = 'member-github'
-    profile.href = destination === 'work'
-      ? createGitHubWorkUrl(member.github, githubContextUrl)
-      : createGitHubProfileUrl(member.github)
-    profile.target = '_blank'
-    profile.rel = 'noopener noreferrer'
     profile.textContent = `@${member.github}`
-    profile.title = githubContext?.kind === 'repository'
-      ? `Open issues assigned to @${member.github}`
-      : githubContext?.kind === 'project'
-        ? `Open project items assigned to @${member.github}`
-        : `Open @${member.github} on GitHub`
     details.append(profile)
   } else {
     const noProfile = document.createElement('span')
@@ -534,12 +555,6 @@ function renderMembers(): void {
   elements.memberList.hidden = members.length === 0
   elements.memberEmpty.hidden = members.length > 0 || isAddFormOpen
   elements.teamCount.textContent = String(members.length)
-  updatePresenceSummary()
-}
-
-function updatePresenceSummary(): void {
-  const presentCount = members.filter((member) => member.isPresent).length
-  elements.presenceSummaryText.textContent = `${presentCount} present`
 }
 
 function renderOrder(): void {
@@ -552,7 +567,8 @@ function renderOrder(): void {
     elements.orderList.hidden = true
     elements.orderEmpty.hidden = false
     elements.copyOrderButton.hidden = true
-    elements.orderMeta.textContent = 'Not shuffled'
+    elements.orderMeta.hidden = true
+    elements.orderMeta.textContent = ''
 
     if (members.length === 0) {
       elements.orderEmptyText.textContent = 'No team members'
@@ -581,7 +597,7 @@ function renderOrder(): void {
 
     const identity = document.createElement('div')
     identity.className = 'order-item__identity'
-    identity.append(createAvatar(member, 'small'), createMemberDetails(member, 'work'))
+    identity.append(createAvatar(member, 'small', 'work'), createMemberDetails(member, 'work'))
     item.append(position, identity)
     elements.orderList.append(item)
   })
@@ -589,7 +605,8 @@ function renderOrder(): void {
   elements.orderEmpty.hidden = true
   elements.orderList.hidden = false
   elements.copyOrderButton.hidden = false
-  elements.orderMeta.textContent = `${orderedMembers.length} ${orderedMembers.length === 1 ? 'person' : 'people'}`
+  elements.orderMeta.hidden = false
+  elements.orderMeta.textContent = TODAY
 }
 
 function syncUrl(): void {
@@ -760,7 +777,6 @@ elements.memberList.addEventListener('change', (event) => {
   member.isPresent = checkbox.checked
   orderedMemberIds = null
   syncUrl()
-  updatePresenceSummary()
   renderOrder()
 
   row.classList.toggle('member-row--absent', !member.isPresent)
@@ -934,10 +950,6 @@ window.addEventListener('popstate', () => {
   syncUrl()
   render()
 })
-
-elements.todayDate.textContent = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'full',
-}).format(new Date())
 
 elements.githubContextUrl.value = githubContextUrl
 applyTheme(loadTheme())
