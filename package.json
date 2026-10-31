@@ -10,6 +10,6 @@
     "test": "node --test src/*.test.ts"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24"
   }
 }
